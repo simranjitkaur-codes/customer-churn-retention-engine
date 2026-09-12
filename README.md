@@ -23,9 +23,11 @@ using a public telecom dataset and explores candidate retention actions.
 - Initial repository structure created.
 - Python dependencies listed.
 - Local development environment configured.
-- Dataset downloaded and documented (see data/README.md).
-- Initial data inspection completed in notebooks/01_data_inspection.ipynb.
-- Key data quality issues identified for cleaning in Day 3.
+- Dataset sourced and documented.
+- Data loaded and inspected.
+- Data cleaned: TotalCharges fixed, Churn encoded, customerID dropped.
+- Cleaned dataset saved to data/processed/.
+- 10 unit tests written and passing.
 
 ## Local Setup — Windows PowerShell
 
