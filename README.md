@@ -23,14 +23,25 @@ using a public telecom dataset and explores candidate retention actions.
 - Initial repository structure created.
 - Python dependencies listed.
 - Local development environment configured.
-
-No model has been trained yet. Performance results will be added
-after evaluation.
+- Dataset downloaded and documented (see data/README.md).
+- Initial data inspection completed in notebooks/01_data_inspection.ipynb.
+- Key data quality issues identified for cleaning in Day 3.
 
 ## Local Setup — Windows PowerShell
 
 Run these commands from the project root:
 
 ```powershell
-py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+If you need to create the virtual environment:
+
+```powershell
+& "C:\Users\gurmeet singh\AppData\Local\Programs\Python\Python310\python.exe" -m venv .venv
+```
+
+## Important Limitation
+
+Retention suggestions will initially be rule-based ideas for testing.
+They should not be interpreted as proven ways to prevent churn.
