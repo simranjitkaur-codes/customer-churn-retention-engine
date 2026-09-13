@@ -18,16 +18,16 @@ using a public telecom dataset and explores candidate retention actions.
 7. Add rule-based retention suggestions.
 8. Build a Streamlit demonstration and automated tests.
 
-## Current Progress
+## Day 4 — Train/Test Split and Initial EDA
 
-- Initial repository structure created.
-- Python dependencies listed.
-- Local development environment configured.
-- Dataset sourced and documented.
-- Data loaded and inspected.
-- Data cleaned: TotalCharges fixed, Churn encoded, customerID dropped.
-- Cleaned dataset saved to data/processed/.
-- 10 unit tests written and passing.
+- Created reproducible 80/20 stratified train-test split.
+- Training set: 5,616 rows.
+- Test set: 1,405 rows.
+- Performed exploratory data analysis using training data only.
+- Analyzed churn distribution, contract type, tenure, and monthly charges.
+- Created and saved four professional visualizations.
+- Generated supporting EDA summary CSV files.
+- Documented initial business-oriented churn observations.
 
 ## Local Setup — Windows PowerShell
 

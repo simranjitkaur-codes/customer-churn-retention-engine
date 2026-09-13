@@ -1,0 +1,4 @@
+Dataset,Rows,Churn Rate (%)
+Full,7021,26.45
+Training,5616,26.44
+Test,1405,26.48
