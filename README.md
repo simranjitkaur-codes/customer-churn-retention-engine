@@ -19,17 +19,25 @@ using a public telecom dataset and explores candidate retention actions.
 8. Build a Streamlit demonstration and automated tests.
 
 ## Current Progress
-- Analyzed churn rates across payment method, internet service, tech support, online security, and paperless billing.
-- Built a combined high-risk customer segment comparison.
-- Analyzed the Contract × Internet Service interaction.
-- Completed the Week 1 business insights report.
+- Built a leakage-free scikit-learn preprocessing pipeline using ColumnTransformer and Pipelines.
+- Created engineered features: AvgMonthlyCharge and TenureGroup.
+- Applied imputation, scaling, and one-hot encoding.
+- Saved the fitted preprocessor for reuse.
+- Added reusable feature engineering logic and unit tests.
+- Generated 50 final model-ready features.
+### Day 6 — Feature Engineering & Preprocessing
 
-### Day 5 — Service & Billing Analysis
-![High-Risk Customer Segments](reports/figures/09_risk_segment_comparison.png)
+The project now uses a reusable scikit-learn preprocessing pipeline.
 
-![Contract Type × Internet Service Interaction](reports/figures/10_contract_internet_heatmap.png)
+- Numeric features → median imputation + standard scaling
+- Categorical features → most-frequent imputation + one-hot encoding
+- Unknown categories are handled safely using `handle_unknown="ignore"`
+- Two interpretable engineered features were created:
+  - `AvgMonthlyCharge`
+  - `TenureGroup`
+- Preprocessing is fitted only on training data to prevent data leakage.
+- Final feature matrix contains **50 features**.
 
-Full written findings: [Week 1 Business Insights](reports/week1_business_insights.md)
 
 ## Local Setup — Windows PowerShell
 
