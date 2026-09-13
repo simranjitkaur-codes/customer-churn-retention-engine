@@ -18,16 +18,18 @@ using a public telecom dataset and explores candidate retention actions.
 7. Add rule-based retention suggestions.
 8. Build a Streamlit demonstration and automated tests.
 
-## Day 4 — Train/Test Split and Initial EDA
+## Current Progress
+- Analyzed churn rates across payment method, internet service, tech support, online security, and paperless billing.
+- Built a combined high-risk customer segment comparison.
+- Analyzed the Contract × Internet Service interaction.
+- Completed the Week 1 business insights report.
 
-- Created reproducible 80/20 stratified train-test split.
-- Training set: 5,616 rows.
-- Test set: 1,405 rows.
-- Performed exploratory data analysis using training data only.
-- Analyzed churn distribution, contract type, tenure, and monthly charges.
-- Created and saved four professional visualizations.
-- Generated supporting EDA summary CSV files.
-- Documented initial business-oriented churn observations.
+### Day 5 — Service & Billing Analysis
+![High-Risk Customer Segments](reports/figures/09_risk_segment_comparison.png)
+
+![Contract Type × Internet Service Interaction](reports/figures/10_contract_internet_heatmap.png)
+
+Full written findings: [Week 1 Business Insights](reports/week1_business_insights.md)
 
 ## Local Setup — Windows PowerShell
 
