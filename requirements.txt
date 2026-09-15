@@ -7,3 +7,4 @@ joblib
 ipykernel
 pytest
 xgboost
+shap

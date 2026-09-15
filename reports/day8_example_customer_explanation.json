@@ -1,0 +1,113 @@
+{
+    "customer": {
+        "gender": "Female",
+        "SeniorCitizen": 1,
+        "Partner": "Yes",
+        "Dependents": "No",
+        "tenure": 1,
+        "PhoneService": "Yes",
+        "MultipleLines": "Yes",
+        "InternetService": "Fiber optic",
+        "OnlineSecurity": "No",
+        "OnlineBackup": "No",
+        "DeviceProtection": "Yes",
+        "TechSupport": "No",
+        "StreamingTV": "Yes",
+        "StreamingMovies": "Yes",
+        "Contract": "Month-to-month",
+        "PaperlessBilling": "Yes",
+        "PaymentMethod": "Electronic check",
+        "MonthlyCharges": 100.8,
+        "TotalCharges": 100.8
+    },
+    "model_explanation": {
+        "churn_probability": 0.9473,
+        "risk_level": "High Risk",
+        "recommendations": [
+            "Offer a discount or incentive to move the customer to a one-year or two-year contract.",
+            "Prioritize this customer for proactive retention outreach because the month-to-month fiber optic segment has elevated churn risk.",
+            "Offer a personalized discount or service bundle to reduce the customer's monthly cost burden.",
+            "Provide onboarding support and an early-loyalty incentive to strengthen customer engagement.",
+            "Offer a free technical-support trial to increase service engagement.",
+            "Offer a discounted online-security add-on.",
+            "Encourage migration to automatic payment methods for a more convenient billing experience."
+        ]
+    },
+    "top_shap_features": [
+        {
+            "Feature": "tenure",
+            "SHAP_Value": 0.061790133310673824,
+            "Absolute_SHAP": 0.061790133310673824
+        },
+        {
+            "Feature": "Contract_Month-to-month",
+            "SHAP_Value": 0.048898652427547276,
+            "Absolute_SHAP": 0.048898652427547276
+        },
+        {
+            "Feature": "InternetService_Fiber optic",
+            "SHAP_Value": 0.045190420956145956,
+            "Absolute_SHAP": 0.045190420956145956
+        },
+        {
+            "Feature": "TechSupport_No",
+            "SHAP_Value": 0.027889572862682153,
+            "Absolute_SHAP": 0.027889572862682153
+        },
+        {
+            "Feature": "TenureGroup_0-12 months",
+            "SHAP_Value": 0.02721168490753593,
+            "Absolute_SHAP": 0.02721168490753593
+        },
+        {
+            "Feature": "OnlineSecurity_No",
+            "SHAP_Value": 0.024916658101849728,
+            "Absolute_SHAP": 0.024916658101849728
+        },
+        {
+            "Feature": "Contract_Two year",
+            "SHAP_Value": 0.02271355665269135,
+            "Absolute_SHAP": 0.02271355665269135
+        },
+        {
+            "Feature": "AvgMonthlyCharge",
+            "SHAP_Value": 0.021663987193813596,
+            "Absolute_SHAP": 0.021663987193813596
+        },
+        {
+            "Feature": "PaymentMethod_Electronic check",
+            "SHAP_Value": 0.020277525053641526,
+            "Absolute_SHAP": 0.020277525053641526
+        },
+        {
+            "Feature": "TotalCharges",
+            "SHAP_Value": 0.017596806846450812,
+            "Absolute_SHAP": 0.017596806846450812
+        },
+        {
+            "Feature": "MonthlyCharges",
+            "SHAP_Value": 0.014079786085177261,
+            "Absolute_SHAP": 0.014079786085177261
+        },
+        {
+            "Feature": "InternetService_DSL",
+            "SHAP_Value": 0.012674067628151217,
+            "Absolute_SHAP": 0.012674067628151217
+        },
+        {
+            "Feature": "TenureGroup_49-72 months",
+            "SHAP_Value": 0.011292522663152081,
+            "Absolute_SHAP": 0.011292522663152081
+        },
+        {
+            "Feature": "MultipleLines_No",
+            "SHAP_Value": 0.0062696734848996195,
+            "Absolute_SHAP": 0.0062696734848996195
+        },
+        {
+            "Feature": "StreamingTV_No internet service",
+            "SHAP_Value": 0.0062422233482444835,
+            "Absolute_SHAP": 0.0062422233482444835
+        }
+    ]
+}

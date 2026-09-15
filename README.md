@@ -36,18 +36,38 @@ using a public telecom dataset and explores candidate retention actions.
 
 ![Confusion Matrices](reports/figures/09_confusion_matrices.png)
 
-### Day 6 — Feature Engineering & Preprocessing
+## Day 8 — Explainability and Retention Recommendations
 
-The project now uses a reusable scikit-learn preprocessing pipeline.
+Day 8 adds model explainability and a rule-based retention engine.
 
-- Numeric features → median imputation + standard scaling
-- Categorical features → most-frequent imputation + one-hot encoding
-- Unknown categories are handled safely using `handle_unknown="ignore"`
-- Two interpretable engineered features were created:
-  - `AvgMonthlyCharge`
-  - `TenureGroup`
-- Preprocessing is fitted only on training data to prevent data leakage.
-- Final feature matrix contains **50 features**.
+### Explainability
+
+- Random Forest feature importance
+- Global SHAP analysis
+- Individual customer SHAP explanation
+- Highest-risk customer analysis
+
+### Retention Engine
+
+The recommendation engine is implemented in:
+
+`src/recommendations.py`
+
+It converts customer attributes and churn probability into:
+
+- Risk level
+- Retention recommendations
+- Customer explanation report
+
+### Day 8 Outputs
+
+- `reports/figures/13_feature_importance.png`
+- `reports/figures/14_shap_summary.png`
+- `reports/figures/15_shap_individual_explanation.png`
+- `reports/feature_importance.csv`
+- `reports/shap_global_importance.csv`
+- `reports/day8_individual_shap_explanation.csv`
+- `reports/day8_example_customer_explanation.json`
 
 
 ## Local Setup — Windows PowerShell
