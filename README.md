@@ -19,12 +19,23 @@ using a public telecom dataset and explores candidate retention actions.
 8. Build a Streamlit demonstration and automated tests.
 
 ## Current Progress
-- Built a leakage-free scikit-learn preprocessing pipeline using ColumnTransformer and Pipelines.
-- Created engineered features: AvgMonthlyCharge and TenureGroup.
-- Applied imputation, scaling, and one-hot encoding.
-- Saved the fitted preprocessor for reuse.
-- Added reusable feature engineering logic and unit tests.
-- Generated 50 final model-ready features.
+- Trained 3 baseline models: Logistic Regression, Random Forest, and XGBoost.
+- Evaluated models using Accuracy, Precision, Recall, F1-score, and ROC-AUC.
+- Random Forest achieved the best baseline ROC-AUC of 0.8411.
+- Added model training module (`src/train_model.py`) with unit tests.
+
+## Model Performance
+
+| Model | Accuracy | Precision | Recall | F1-Score | ROC-AUC |
+|---|---:|---:|---:|---:|---:|
+| Random Forest | 0.7801 | 0.5698 | 0.6909 | 0.6245 | 0.8411 |
+| Logistic Regression | 0.7374 | 0.5026 | 0.7742 | 0.6095 | 0.8399 |
+| XGBoost | 0.7473 | 0.5160 | 0.7366 | 0.6069 | 0.8393 |
+
+![Model Comparison](reports/figures/08_model_comparison.png)
+
+![Confusion Matrices](reports/figures/09_confusion_matrices.png)
+
 ### Day 6 — Feature Engineering & Preprocessing
 
 The project now uses a reusable scikit-learn preprocessing pipeline.
