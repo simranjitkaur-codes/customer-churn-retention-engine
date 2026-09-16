@@ -1,31 +1,32 @@
 """
-Customer Churn Prediction & Retention Engine
-Streamlit Dashboard
+Customer Churn Retention Engine
+Streamlit dashboard for single-customer and batch churn prediction.
 """
 
-import sys
 from pathlib import Path
+import json
+import sys
 
 import joblib
-import numpy as np
 import pandas as pd
 import streamlit as st
 
 
 # ============================================================
-# PATHS
+# PROJECT PATHS
 # ============================================================
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 MODEL_PATH = PROJECT_ROOT / "models" / "churn_model.pkl"
 PREPROCESSOR_PATH = PROJECT_ROOT / "models" / "preprocessor.joblib"
-
+METRICS_PATH = PROJECT_ROOT / "reports" / "model_metrics.json"
+FIGURES_DIR = PROJECT_ROOT / "reports" / "figures"
 
 # Allow imports from src/
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.feature_engineering import add_engineered_features
 from src.recommendations import build_customer_report
 
 
@@ -35,290 +36,189 @@ from src.recommendations import build_customer_report
 
 st.set_page_config(
     page_title="Customer Churn Retention Engine",
-    page_icon="📉",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    page_icon="📊",
+    layout="wide"
 )
 
 
 # ============================================================
-# MODEL LOADING
+# CONSTANTS
+# ============================================================
+
+REQUIRED_COLUMNS = [
+    "gender",
+    "SeniorCitizen",
+    "Partner",
+    "Dependents",
+    "tenure",
+    "PhoneService",
+    "MultipleLines",
+    "InternetService",
+    "OnlineSecurity",
+    "OnlineBackup",
+    "DeviceProtection",
+    "TechSupport",
+    "StreamingTV",
+    "StreamingMovies",
+    "Contract",
+    "PaperlessBilling",
+    "PaymentMethod",
+    "MonthlyCharges",
+    "TotalCharges",
+]
+
+
+# ============================================================
+# LOAD MODEL / PREPROCESSOR / METRICS
 # ============================================================
 
 @st.cache_resource
-def load_artifacts():
-    """Load the trained model and preprocessing pipeline."""
-
-    if not MODEL_PATH.exists():
-        raise FileNotFoundError(
-            f"Model not found: {MODEL_PATH}"
-        )
-
-    if not PREPROCESSOR_PATH.exists():
-        raise FileNotFoundError(
-            f"Preprocessor not found: {PREPROCESSOR_PATH}"
-        )
-
-    model = joblib.load(MODEL_PATH)
-    preprocessor = joblib.load(PREPROCESSOR_PATH)
-
-    return model, preprocessor
+def load_model():
+    return joblib.load(MODEL_PATH)
 
 
-# ============================================================
-# FEATURE ENGINEERING
-# ============================================================
+@st.cache_resource
+def load_preprocessor():
+    return joblib.load(PREPROCESSOR_PATH)
 
-def add_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Add the same engineered features used during training."""
 
-    df = df.copy()
+@st.cache_data
+def load_metrics():
+    with open(METRICS_PATH, "r", encoding="utf-8") as file:
+        return json.load(file)
 
-    df["AvgMonthlyCharge"] = np.where(
-        df["tenure"] > 0,
-        df["TotalCharges"] / df["tenure"],
-        df["MonthlyCharges"]
-    )
 
-    df["TenureGroup"] = pd.cut(
-        df["tenure"],
-        bins=[-1, 12, 24, 48, 72],
-        labels=[
-            "0-12 months",
-            "13-24 months",
-            "25-48 months",
-            "49-72 months"
-        ]
-    )
-
-    return df
+model = load_model()
+preprocessor = load_preprocessor()
+metrics = load_metrics()
 
 
 # ============================================================
-# PREDICTION
+# HELPER FUNCTIONS
 # ============================================================
 
-def predict_customer(model, preprocessor, customer_df):
-    """Generate churn probability and prediction."""
+def predict_customer(customer_df: pd.DataFrame):
+    """
+    Apply feature engineering, preprocessing and prediction.
+    """
 
-    customer_features = add_engineered_features(customer_df)
+    engineered_df = add_engineered_features(customer_df.copy())
 
-    X_processed = preprocessor.transform(customer_features)
+    processed_features = preprocessor.transform(engineered_df)
 
     probability = float(
-        model.predict_proba(X_processed)[0, 1]
+        model.predict_proba(processed_features)[0, 1]
     )
 
     prediction = int(
-        model.predict(X_processed)[0]
+        model.predict(processed_features)[0]
     )
 
+    return prediction, probability
+
+
+def get_risk_display(probability: float):
+    """
+    Convert churn probability into risk category.
+    """
+
     if probability >= 0.70:
-        risk_level = "High Risk"
+        return "High Risk", "🔴"
     elif probability >= 0.40:
-        risk_level = "Medium Risk"
+        return "Medium Risk", "🟠"
     else:
-        risk_level = "Low Risk"
-
-    return {
-        "churn_probability": probability,
-        "prediction": prediction,
-        "risk_level": risk_level,
-    }
-
-
-# ============================================================
-# LOAD MODEL
-# ============================================================
-
-try:
-    model, preprocessor = load_artifacts()
-    model_loaded = True
-except Exception as error:
-    model_loaded = False
-    model_error = error
+        return "Low Risk", "🟢"
 
 
 # ============================================================
 # SIDEBAR
 # ============================================================
 
-st.sidebar.title("📉 Churn Engine")
+st.sidebar.title("📊 Churn Engine")
 
-page = st.sidebar.radio(
-    "Go to",
-    [
-        "Overview",
-        "Dashboard",
-        "Predict Churn",
-    ],
+st.sidebar.markdown(
+    """
+### Navigation
+
+Use the tabs to:
+
+- 👤 Predict individual customers
+- 📂 Run batch predictions
+- 📈 View model performance
+- 🔍 Explore model insights
+
+The application uses the trained Random Forest model
+and the same preprocessing pipeline used during training.
+"""
+)
+
+st.sidebar.markdown("---")
+
+st.sidebar.caption(
+    "Customer Churn Retention Engine"
 )
 
 
 # ============================================================
-# OVERVIEW
+# HEADER
 # ============================================================
 
-if page == "Overview":
+st.title("📊 Customer Churn Retention Engine")
 
-    st.title("📉 Customer Churn Prediction & Retention Engine")
+st.markdown(
+    """
+Predict customer churn probability and generate
+rule-based retention recommendations using customer
+service, billing and contract information.
+"""
+)
 
-    st.markdown("---")
-
-    st.header("Project Goal")
-
-    st.write(
-        "Predict which telecom customers are likely to churn "
-        "and generate actionable retention recommendations "
-        "using a machine learning model."
-    )
-
-    st.header("Model Performance")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric(
-            "Best Model",
-            "Random Forest"
-        )
-
-    with col2:
-        st.metric(
-            "Test ROC-AUC",
-            "0.8411"
-        )
-
-    with col3:
-        st.metric(
-            "Test Recall",
-            "0.6909"
-        )
-
-    st.header("Project Pipeline")
-
-    st.markdown(
-        """
-        **Data Cleaning**
-        → **EDA**
-        → **Feature Engineering**
-        → **Preprocessing**
-        → **Model Training**
-        → **Explainability**
-        → **Retention Recommendations**
-        """
-    )
-
-    st.info(
-        "This dashboard demonstrates an end-to-end "
-        "customer churn prediction workflow."
-    )
+st.markdown("---")
 
 
 # ============================================================
-# DASHBOARD
+# TABS
 # ============================================================
 
-elif page == "Dashboard":
-
-    st.title("📊 Churn Analysis Dashboard")
-
-    st.markdown("---")
-
-    figures_path = PROJECT_ROOT / "reports" / "figures"
-
-    charts = [
-        (
-            "Churn Distribution",
-            "01_churn_distribution.png"
-        ),
-        (
-            "Churn Rate by Contract Type",
-            "02_contract_churn_rate.png"
-        ),
-        (
-            "Tenure vs Churn",
-            "03_tenure_vs_churn.png"
-        ),
-        (
-            "Monthly Charges vs Churn",
-            "04_monthly_charges_vs_churn.png"
-        ),
-        (
-            "High-Risk Customer Segments",
-            "09_risk_segment_comparison.png"
-        ),
-        (
-            "Contract × Internet Service",
-            "10_contract_internet_heatmap.png"
-        ),
+tab1, tab2, tab3, tab4 = st.tabs(
+    [
+        "👤 Single Customer",
+        "📂 Batch Prediction",
+        "📈 Model Performance",
+        "🔍 Model Insights",
     ]
-
-    for title, filename in charts:
-
-        chart_path = figures_path / filename
-
-        if chart_path.exists():
-
-            st.subheader(title)
-
-            st.image(
-                str(chart_path),
-                use_container_width=True
-            )
-
-        else:
-
-            st.warning(
-                f"Chart not found: {filename}"
-            )
-
-    st.caption(
-        "EDA charts were generated from the training dataset."
-    )
+)
 
 
 # ============================================================
-# PREDICT CHURN
+# TAB 1 — SINGLE CUSTOMER
 # ============================================================
 
-elif page == "Predict Churn":
+with tab1:
 
-    st.title("🔮 Predict Customer Churn")
-
-    st.markdown("---")
-
-    if not model_loaded:
-
-        st.error(
-            f"Unable to load model artifacts: {model_error}"
-        )
-
-        st.stop()
+    st.header("Individual Customer Prediction")
 
     st.write(
-        "Enter customer information to generate a churn "
-        "prediction and retention recommendations."
+        "Enter the customer's information below."
     )
 
-    with st.form("customer_form"):
+    with st.form("customer_prediction_form"):
 
-        col1, col2 = st.columns(2)
+        st.subheader("Customer Information")
 
-        # ----------------------------------------------------
-        # CUSTOMER INFORMATION
-        # ----------------------------------------------------
+        col1, col2, col3 = st.columns(3)
 
         with col1:
-
             gender = st.selectbox(
                 "Gender",
-                ["Female", "Male"]
+                ["Male", "Female"]
             )
 
-            senior = st.selectbox(
+            senior_citizen = st.selectbox(
                 "Senior Citizen",
-                [0, 1]
+                [0, 1],
+                format_func=lambda x:
+                    "Yes" if x == 1 else "No"
             )
 
             partner = st.selectbox(
@@ -331,95 +231,62 @@ elif page == "Predict Churn":
                 ["Yes", "No"]
             )
 
-            tenure = st.slider(
+            tenure = st.number_input(
                 "Tenure (months)",
-                0,
-                72,
-                12
+                min_value=0,
+                max_value=72,
+                value=12,
+                step=1
             )
 
-            phone = st.selectbox(
+            phone_service = st.selectbox(
                 "Phone Service",
                 ["Yes", "No"]
             )
 
-            multiple = st.selectbox(
+            multiple_lines = st.selectbox(
                 "Multiple Lines",
-                [
-                    "Yes",
-                    "No",
-                    "No phone service"
-                ]
+                ["Yes", "No", "No phone service"]
             )
-
-            internet = st.selectbox(
-                "Internet Service",
-                [
-                    "DSL",
-                    "Fiber optic",
-                    "No"
-                ]
-            )
-
-            security = st.selectbox(
-                "Online Security",
-                [
-                    "Yes",
-                    "No",
-                    "No internet service"
-                ]
-            )
-
-            backup = st.selectbox(
-                "Online Backup",
-                [
-                    "Yes",
-                    "No",
-                    "No internet service"
-                ]
-            )
-
-        # ----------------------------------------------------
-        # BILLING / SERVICES
-        # ----------------------------------------------------
 
         with col2:
 
-            device = st.selectbox(
-                "Device Protection",
-                [
-                    "Yes",
-                    "No",
-                    "No internet service"
-                ]
+            internet_service = st.selectbox(
+                "Internet Service",
+                ["DSL", "Fiber optic", "No"]
             )
 
-            tech = st.selectbox(
+            online_security = st.selectbox(
+                "Online Security",
+                ["Yes", "No", "No internet service"]
+            )
+
+            online_backup = st.selectbox(
+                "Online Backup",
+                ["Yes", "No", "No internet service"]
+            )
+
+            device_protection = st.selectbox(
+                "Device Protection",
+                ["Yes", "No", "No internet service"]
+            )
+
+            tech_support = st.selectbox(
                 "Tech Support",
-                [
-                    "Yes",
-                    "No",
-                    "No internet service"
-                ]
+                ["Yes", "No", "No internet service"]
             )
 
             streaming_tv = st.selectbox(
                 "Streaming TV",
-                [
-                    "Yes",
-                    "No",
-                    "No internet service"
-                ]
+                ["Yes", "No", "No internet service"]
             )
 
             streaming_movies = st.selectbox(
                 "Streaming Movies",
-                [
-                    "Yes",
-                    "No",
-                    "No internet service"
-                ]
+                ["Yes", "No", "No internet service"]
             )
+
+        with col3:
 
             contract = st.selectbox(
                 "Contract",
@@ -430,12 +297,12 @@ elif page == "Predict Churn":
                 ]
             )
 
-            paperless = st.selectbox(
+            paperless_billing = st.selectbox(
                 "Paperless Billing",
                 ["Yes", "No"]
             )
 
-            payment = st.selectbox(
+            payment_method = st.selectbox(
                 "Payment Method",
                 [
                     "Electronic check",
@@ -445,142 +312,406 @@ elif page == "Predict Churn":
                 ]
             )
 
-            monthly = st.number_input(
+            monthly_charges = st.number_input(
                 "Monthly Charges",
                 min_value=0.0,
-                max_value=200.0,
-                value=70.0
+                value=70.0,
+                step=0.01
             )
 
-            total = st.number_input(
-                "Total Charges",
-                min_value=0.0,
-                max_value=10000.0,
-                value=1500.0
+            st.markdown("### Billing")
+
+            st.info(
+                "Total Charges are calculated automatically "
+                "using tenure × monthly charges."
+            )
+
+            calculated_total = (
+                tenure * monthly_charges
+            )
+
+            st.metric(
+                "Estimated Total Charges",
+                f"${calculated_total:,.2f}"
             )
 
         submitted = st.form_submit_button(
-            "🔮 Predict Churn"
+            "🔮 Predict Churn",
+            use_container_width=True
         )
-
-    # --------------------------------------------------------
-    # RESULT
-    # --------------------------------------------------------
 
     if submitted:
 
-        customer_df = pd.DataFrame([{
-
+        customer = {
             "gender": gender,
-            "SeniorCitizen": senior,
+            "SeniorCitizen": senior_citizen,
             "Partner": partner,
             "Dependents": dependents,
             "tenure": tenure,
-            "PhoneService": phone,
-            "MultipleLines": multiple,
-            "InternetService": internet,
-            "OnlineSecurity": security,
-            "OnlineBackup": backup,
-            "DeviceProtection": device,
-            "TechSupport": tech,
+            "PhoneService": phone_service,
+            "MultipleLines": multiple_lines,
+            "InternetService": internet_service,
+            "OnlineSecurity": online_security,
+            "OnlineBackup": online_backup,
+            "DeviceProtection": device_protection,
+            "TechSupport": tech_support,
             "StreamingTV": streaming_tv,
             "StreamingMovies": streaming_movies,
             "Contract": contract,
-            "PaperlessBilling": paperless,
-            "PaymentMethod": payment,
-            "MonthlyCharges": monthly,
-            "TotalCharges": total,
+            "PaperlessBilling": paperless_billing,
+            "PaymentMethod": payment_method,
+            "MonthlyCharges": monthly_charges,
+            "TotalCharges": calculated_total,
+        }
 
-        }])
+        customer_df = pd.DataFrame([customer])
 
-        result = predict_customer(
-            model,
-            preprocessor,
+        prediction, probability = predict_customer(
             customer_df
         )
 
-        probability = result["churn_probability"]
-        risk = result["risk_level"]
-
-        customer_dict = customer_df.iloc[0].to_dict()
-
-        report = build_customer_report(
-            customer_dict,
+        risk_level, risk_icon = get_risk_display(
             probability
         )
 
+        report = build_customer_report(
+            customer,
+            probability
+        )
+
+        st.markdown("---")
+
         st.subheader("Prediction Result")
 
-        col1, col2, col3 = st.columns(3)
+        result_col1, result_col2, result_col3 = st.columns(3)
 
-        with col1:
+        with result_col1:
             st.metric(
                 "Churn Probability",
                 f"{probability:.1%}"
             )
 
-        with col2:
+        with result_col2:
             st.metric(
                 "Risk Level",
-                risk
+                f"{risk_icon} {risk_level}"
             )
 
-        with col3:
+        with result_col3:
 
             prediction_text = (
                 "Likely to Churn"
-                if result["prediction"] == 1
+                if prediction == 1
                 else "Likely to Stay"
             )
 
             st.metric(
-                "Prediction",
+                "Model Prediction",
                 prediction_text
             )
 
-        if risk == "High Risk":
+        st.progress(
+            min(max(probability, 0.0), 1.0)
+        )
+
+        st.markdown("---")
+
+        st.subheader("💡 Retention Recommendations")
+
+        for recommendation in report["recommendations"]:
+            st.info(f"• {recommendation}")
+
+
+# ============================================================
+# TAB 2 — BATCH PREDICTION
+# ============================================================
+
+with tab2:
+
+    st.header("📂 Batch Customer Prediction")
+
+    st.write(
+        "Upload a CSV containing customer records."
+    )
+
+    st.info(
+        "The CSV should contain the 19 customer input "
+        "features used by the model. `customerID` and "
+        "`Churn` are optional."
+    )
+
+    uploaded_file = st.file_uploader(
+        "Upload customer CSV",
+        type=["csv"]
+    )
+
+    if uploaded_file is not None:
+
+        try:
+
+            batch_df = pd.read_csv(uploaded_file)
+
+            st.subheader("Uploaded Data")
+
+            st.dataframe(
+                batch_df.head(10),
+                use_container_width=True
+            )
+
+            missing_columns = [
+                column
+                for column in REQUIRED_COLUMNS
+                if column not in batch_df.columns
+            ]
+
+            if missing_columns:
+
+                st.error(
+                    "Missing required columns: "
+                    + ", ".join(missing_columns)
+                )
+
+            else:
+
+                prediction_input = batch_df[
+                    REQUIRED_COLUMNS
+                ].copy()
+
+                prediction_input["TotalCharges"] = pd.to_numeric(
+                    prediction_input["TotalCharges"],
+                    errors="coerce"
+                )
+
+                prediction_input["MonthlyCharges"] = pd.to_numeric(
+                    prediction_input["MonthlyCharges"],
+                    errors="coerce"
+                )
+
+                prediction_input["tenure"] = pd.to_numeric(
+                    prediction_input["tenure"],
+                    errors="coerce"
+                )
+
+                engineered_batch = add_engineered_features(
+                    prediction_input
+                )
+
+                processed_batch = preprocessor.transform(
+                    engineered_batch
+                )
+
+                probabilities = model.predict_proba(
+                    processed_batch
+                )[:, 1]
+
+                predictions = model.predict(
+                    processed_batch
+                )
+
+                results_df = batch_df.copy()
+
+                results_df["Churn_Probability"] = probabilities
+                results_df["Risk_Level"] = [
+                    get_risk_display(probability)[0]
+                    for probability in probabilities
+                ]
+                results_df["Prediction"] = [
+                    "Likely to Churn"
+                    if prediction == 1
+                    else "Likely to Stay"
+                    for prediction in predictions
+                ]
+
+                st.subheader("Prediction Results")
+
+                st.dataframe(
+                    results_df,
+                    use_container_width=True
+                )
+
+                st.subheader("Batch Summary")
+
+                batch_col1, batch_col2, batch_col3 = st.columns(3)
+
+                with batch_col1:
+                    st.metric(
+                        "Customers",
+                        len(results_df)
+                    )
+
+                with batch_col2:
+                    st.metric(
+                        "High Risk Customers",
+                        int(
+                            (
+                                results_df["Risk_Level"]
+                                == "High Risk"
+                            ).sum()
+                        )
+                    )
+
+                with batch_col3:
+                    st.metric(
+                        "Predicted Churn",
+                        int(
+                            (
+                                results_df["Prediction"]
+                                == "Likely to Churn"
+                            ).sum()
+                        )
+                    )
+
+                csv_data = results_df.to_csv(
+                    index=False
+                ).encode("utf-8")
+
+                st.download_button(
+                    label="⬇️ Download Predictions CSV",
+                    data=csv_data,
+                    file_name="churn_predictions.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+
+        except Exception as error:
 
             st.error(
-                "⚠️ High Risk Customer"
+                f"Could not process the uploaded CSV: {error}"
             )
 
-        elif risk == "Medium Risk":
 
-            st.warning(
-                "⚠️ Medium Risk Customer"
+# ============================================================
+# TAB 3 — MODEL PERFORMANCE
+# ============================================================
+
+with tab3:
+
+    st.header("📈 Model Performance")
+
+    metrics_df = pd.DataFrame(metrics)
+
+    st.dataframe(
+        metrics_df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.markdown("---")
+
+    st.subheader("Selected Model")
+
+    best_model_row = max(
+        metrics,
+        key=lambda row: row["ROC_AUC"]
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric(
+            "Model",
+            best_model_row["Model"]
+        )
+
+    with col2:
+        st.metric(
+            "Accuracy",
+            f"{best_model_row['Accuracy']:.4f}"
+        )
+
+    with col3:
+        st.metric(
+            "F1 Score",
+            f"{best_model_row['F1_Score']:.4f}"
+        )
+
+    with col4:
+        st.metric(
+            "ROC-AUC",
+            f"{best_model_row['ROC_AUC']:.4f}"
+        )
+
+    st.markdown("---")
+
+    model_comparison_path = (
+        FIGURES_DIR / "08_model_comparison.png"
+    )
+
+    confusion_matrix_path = (
+        FIGURES_DIR / "09_confusion_matrices.png"
+    )
+
+    if model_comparison_path.exists():
+
+        st.subheader("Model Comparison")
+
+        st.image(
+            str(model_comparison_path),
+            use_container_width=True
+        )
+
+    if confusion_matrix_path.exists():
+
+        st.subheader("Confusion Matrices")
+
+        st.image(
+            str(confusion_matrix_path),
+            use_container_width=True
+        )
+
+
+# ============================================================
+# TAB 4 — MODEL INSIGHTS
+# ============================================================
+
+with tab4:
+
+    st.header("🔍 Model Insights")
+
+    insight_figures = [
+        (
+            "Feature Importance",
+            "13_feature_importance.png"
+        ),
+        (
+            "SHAP Summary",
+            "14_shap_summary.png"
+        ),
+        (
+            "SHAP Individual Explanation",
+            "15_shap_individual_explanation.png"
+        ),
+    ]
+
+    for title, filename in insight_figures:
+
+        figure_path = FIGURES_DIR / filename
+
+        if figure_path.exists():
+
+            st.subheader(title)
+
+            st.image(
+                str(figure_path),
+                use_container_width=True
             )
+
+            st.markdown("---")
 
         else:
 
-            st.success(
-                "✅ Low Risk Customer"
+            st.warning(
+                f"Figure not found: {filename}"
             )
-
-        st.subheader(
-            "Recommended Retention Actions"
-        )
-
-        for i, recommendation in enumerate(
-            report["recommendations"],
-            start=1
-        ):
-
-            st.write(
-                f"**{i}.** {recommendation}"
-            )
-
-        st.caption(
-            "Recommendations are generated using "
-            "transparent rule-based business logic."
-        )
 
 
 # ============================================================
 # FOOTER
 # ============================================================
 
-st.sidebar.markdown("---")
+st.markdown("---")
 
-st.sidebar.caption(
-    "Customer Churn & Retention Engine"
+st.caption(
+    "Customer Churn Retention Engine • "
+    "Machine Learning + Rule-Based Retention Recommendations"
 )
