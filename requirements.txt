@@ -8,3 +8,4 @@ ipykernel
 pytest
 xgboost
 shap
+streamlit

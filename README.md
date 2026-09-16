@@ -24,6 +24,9 @@ using a public telecom dataset and explores candidate retention actions.
 - Random Forest achieved the best baseline ROC-AUC of 0.8411.
 - Added model training module (`src/train_model.py`) with unit tests.
 
+```markdown
+- Built a Streamlit dashboard with Overview, Dashboard, and Predict Churn pages.
+
 ## Model Performance
 
 | Model | Accuracy | Precision | Recall | F1-Score | ROC-AUC |
@@ -58,6 +61,13 @@ It converts customer attributes and churn probability into:
 - Risk level
 - Retention recommendations
 - Customer explanation report
+
+## Live Demo
+
+Run the app locally:
+
+```bash
+streamlit run app/streamlit_app.py
 
 ### Day 8 Outputs
 
