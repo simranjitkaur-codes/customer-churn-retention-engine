@@ -1,0 +1,17 @@
+{
+  "classifier": "RandomForestClassifier",
+  "python_version": "3.10.11",
+  "runtime_packages": {
+    "numpy": "2.2.6",
+    "pandas": "2.3.3",
+    "scipy": "1.15.3",
+    "scikit-learn": "1.7.2",
+    "joblib": "1.6.0",
+    "streamlit": "1.64.0"
+  },
+  "training_rows": 5616,
+  "cv_folds": 5,
+  "cv_random_state": 42,
+  "evaluation_scope": "Development cross-validation; not independent final-test performance.",
+  "model_file": "models/churn_pipeline.joblib"
+}

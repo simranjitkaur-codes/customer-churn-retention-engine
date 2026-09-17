@@ -18,15 +18,28 @@ import streamlit as st
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-MODEL_PATH = PROJECT_ROOT / "models" / "churn_model.pkl"
-PREPROCESSOR_PATH = PROJECT_ROOT / "models" / "preprocessor.joblib"
-METRICS_PATH = PROJECT_ROOT / "reports" / "model_metrics.json"
-FIGURES_DIR = PROJECT_ROOT / "reports" / "figures"
+PIPELINE_PATH = (
+    PROJECT_ROOT
+    / "models"
+    / "churn_pipeline.joblib"
+)
+
+METRICS_PATH = (
+    PROJECT_ROOT
+    / "reports"
+    / "model_metrics.json"
+)
+
+FIGURES_DIR = (
+    PROJECT_ROOT
+    / "reports"
+    / "figures"
+)
+
 
 # Allow imports from src/
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.feature_engineering import add_engineered_features
 from src.recommendations import build_customer_report
 
 
@@ -69,17 +82,12 @@ REQUIRED_COLUMNS = [
 
 
 # ============================================================
-# LOAD MODEL / PREPROCESSOR / METRICS
+# LOAD PIPELINE / METRICS
 # ============================================================
 
 @st.cache_resource
-def load_model():
-    return joblib.load(MODEL_PATH)
-
-
-@st.cache_resource
-def load_preprocessor():
-    return joblib.load(PREPROCESSOR_PATH)
+def load_churn_pipeline():
+    return joblib.load(PIPELINE_PATH)
 
 
 @st.cache_data
@@ -88,8 +96,7 @@ def load_metrics():
         return json.load(file)
 
 
-model = load_model()
-preprocessor = load_preprocessor()
+model = load_churn_pipeline()
 metrics = load_metrics()
 
 
@@ -99,19 +106,28 @@ metrics = load_metrics()
 
 def predict_customer(customer_df: pd.DataFrame):
     """
-    Apply feature engineering, preprocessing and prediction.
+    Run prediction through the complete saved pipeline.
+
+    The pipeline handles:
+    - feature engineering
+    - preprocessing
+    - classification
     """
 
-    engineered_df = add_engineered_features(customer_df.copy())
-
-    processed_features = preprocessor.transform(engineered_df)
+    churn_class_index = list(
+        model.classes_
+    ).index(1)
 
     probability = float(
-        model.predict_proba(processed_features)[0, 1]
+        model.predict_proba(
+            customer_df
+        )[0, churn_class_index]
     )
 
     prediction = int(
-        model.predict(processed_features)[0]
+        model.predict(
+            customer_df
+        )[0]
     )
 
     return prediction, probability
@@ -124,8 +140,10 @@ def get_risk_display(probability: float):
 
     if probability >= 0.70:
         return "High Risk", "🔴"
+
     elif probability >= 0.40:
         return "Medium Risk", "🟠"
+
     else:
         return "Low Risk", "🟢"
 
@@ -147,8 +165,8 @@ Use the tabs to:
 - 📈 View model performance
 - 🔍 Explore model insights
 
-The application uses the trained Random Forest model
-and the same preprocessing pipeline used during training.
+The application uses one saved pipeline containing
+feature engineering, preprocessing, and the trained classifier.
 """
 )
 
@@ -208,7 +226,12 @@ with tab1:
 
         col1, col2, col3 = st.columns(3)
 
+        # ----------------------------------------------------
+        # COLUMN 1
+        # ----------------------------------------------------
+
         with col1:
+
             gender = st.selectbox(
                 "Gender",
                 ["Male", "Female"]
@@ -249,6 +272,10 @@ with tab1:
                 ["Yes", "No", "No phone service"]
             )
 
+        # ----------------------------------------------------
+        # COLUMN 2
+        # ----------------------------------------------------
+
         with col2:
 
             internet_service = st.selectbox(
@@ -285,6 +312,10 @@ with tab1:
                 "Streaming Movies",
                 ["Yes", "No", "No internet service"]
             )
+
+        # ----------------------------------------------------
+        # COLUMN 3
+        # ----------------------------------------------------
 
         with col3:
 
@@ -340,6 +371,10 @@ with tab1:
             use_container_width=True
         )
 
+    # --------------------------------------------------------
+    # PREDICTION
+    # --------------------------------------------------------
+
     if submitted:
 
         customer = {
@@ -364,10 +399,10 @@ with tab1:
             "TotalCharges": calculated_total,
         }
 
-        customer_df = pd.DataFrame([customer])
+        raw_df = pd.DataFrame([customer])
 
         prediction, probability = predict_customer(
-            customer_df
+            raw_df
         )
 
         risk_level, risk_icon = get_risk_display(
@@ -385,17 +420,31 @@ with tab1:
 
         result_col1, result_col2, result_col3 = st.columns(3)
 
+        # ----------------------------------------------------
+        # CHURN SCORE
+        # ----------------------------------------------------
+
         with result_col1:
+
             st.metric(
-                "Churn Probability",
-                f"{probability:.1%}"
+                label="Model churn score",
+                value=f"{probability:.1%}",
             )
 
+        # ----------------------------------------------------
+        # RISK LEVEL
+        # ----------------------------------------------------
+
         with result_col2:
+
             st.metric(
                 "Risk Level",
                 f"{risk_icon} {risk_level}"
             )
+
+        # ----------------------------------------------------
+        # MODEL PREDICTION
+        # ----------------------------------------------------
 
         with result_col3:
 
@@ -414,12 +463,27 @@ with tab1:
             min(max(probability, 0.0), 1.0)
         )
 
+        st.caption(
+            "Educational demo. Probability calibration and "
+            "business risk cutoffs have not been validated. "
+            "Retention suggestions are rule-based ideas, "
+            "not proven interventions."
+        )
+
+        st.caption(
+            "Current classifier: "
+            f"{type(model.named_steps['classifier']).__name__}"
+        )
+
         st.markdown("---")
 
         st.subheader("💡 Retention Recommendations")
 
         for recommendation in report["recommendations"]:
-            st.info(f"• {recommendation}")
+
+            st.info(
+                f"• {recommendation}"
+            )
 
 
 # ============================================================
@@ -449,7 +513,9 @@ with tab2:
 
         try:
 
-            batch_df = pd.read_csv(uploaded_file)
+            batch_df = pd.read_csv(
+                uploaded_file
+            )
 
             st.subheader("Uploaded Data")
 
@@ -473,97 +539,146 @@ with tab2:
 
             else:
 
+                # Keep only the features expected by
+                # the saved pipeline.
                 prediction_input = batch_df[
                     REQUIRED_COLUMNS
                 ].copy()
 
-                prediction_input["TotalCharges"] = pd.to_numeric(
-                    prediction_input["TotalCharges"],
-                    errors="coerce"
+                # Ensure numeric columns are numeric.
+                prediction_input["TotalCharges"] = (
+                    pd.to_numeric(
+                        prediction_input["TotalCharges"],
+                        errors="coerce"
+                    )
                 )
 
-                prediction_input["MonthlyCharges"] = pd.to_numeric(
-                    prediction_input["MonthlyCharges"],
-                    errors="coerce"
+                prediction_input["MonthlyCharges"] = (
+                    pd.to_numeric(
+                        prediction_input["MonthlyCharges"],
+                        errors="coerce"
+                    )
                 )
 
-                prediction_input["tenure"] = pd.to_numeric(
-                    prediction_input["tenure"],
-                    errors="coerce"
+                prediction_input["tenure"] = (
+                    pd.to_numeric(
+                        prediction_input["tenure"],
+                        errors="coerce"
+                    )
                 )
 
-                engineered_batch = add_engineered_features(
-                    prediction_input
-                )
+                # The complete pipeline handles:
+                # feature engineering
+                # preprocessing
+                # prediction
 
-                processed_batch = preprocessor.transform(
-                    engineered_batch
-                )
+                churn_class_index = list(
+                    model.classes_
+                ).index(1)
 
-                probabilities = model.predict_proba(
-                    processed_batch
-                )[:, 1]
+                probabilities = (
+                    model.predict_proba(
+                        prediction_input
+                    )[:, churn_class_index]
+                )
 
                 predictions = model.predict(
-                    processed_batch
+                    prediction_input
                 )
 
                 results_df = batch_df.copy()
 
-                results_df["Churn_Probability"] = probabilities
-                results_df["Risk_Level"] = [
-                    get_risk_display(probability)[0]
+                results_df[
+                    "Churn_Probability"
+                ] = probabilities
+
+                results_df[
+                    "Risk_Level"
+                ] = [
+                    get_risk_display(
+                        probability
+                    )[0]
                     for probability in probabilities
                 ]
-                results_df["Prediction"] = [
+
+                results_df[
+                    "Prediction"
+                ] = [
                     "Likely to Churn"
                     if prediction == 1
                     else "Likely to Stay"
                     for prediction in predictions
                 ]
 
-                st.subheader("Prediction Results")
+                st.subheader(
+                    "Prediction Results"
+                )
 
                 st.dataframe(
                     results_df,
                     use_container_width=True
                 )
 
-                st.subheader("Batch Summary")
+                st.subheader(
+                    "Batch Summary"
+                )
 
-                batch_col1, batch_col2, batch_col3 = st.columns(3)
+                batch_col1, batch_col2, batch_col3 = (
+                    st.columns(3)
+                )
+
+                # ------------------------------------------------
+                # CUSTOMERS
+                # ------------------------------------------------
 
                 with batch_col1:
+
                     st.metric(
                         "Customers",
                         len(results_df)
                     )
 
+                # ------------------------------------------------
+                # HIGH RISK
+                # ------------------------------------------------
+
                 with batch_col2:
+
                     st.metric(
                         "High Risk Customers",
                         int(
                             (
-                                results_df["Risk_Level"]
+                                results_df[
+                                    "Risk_Level"
+                                ]
                                 == "High Risk"
                             ).sum()
                         )
                     )
 
+                # ------------------------------------------------
+                # PREDICTED CHURN
+                # ------------------------------------------------
+
                 with batch_col3:
+
                     st.metric(
                         "Predicted Churn",
                         int(
                             (
-                                results_df["Prediction"]
+                                results_df[
+                                    "Prediction"
+                                ]
                                 == "Likely to Churn"
                             ).sum()
                         )
                     )
 
-                csv_data = results_df.to_csv(
-                    index=False
-                ).encode("utf-8")
+                csv_data = (
+                    results_df
+                    .to_csv(index=False)
+                    .encode("utf-8")
+                )
 
                 st.download_button(
                     label="⬇️ Download Predictions CSV",
@@ -588,7 +703,9 @@ with tab3:
 
     st.header("📈 Model Performance")
 
-    metrics_df = pd.DataFrame(metrics)
+    metrics_df = pd.DataFrame(
+        metrics
+    )
 
     st.dataframe(
         metrics_df,
@@ -608,24 +725,28 @@ with tab3:
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
+
         st.metric(
             "Model",
             best_model_row["Model"]
         )
 
     with col2:
+
         st.metric(
             "Accuracy",
             f"{best_model_row['Accuracy']:.4f}"
         )
 
     with col3:
+
         st.metric(
             "F1 Score",
             f"{best_model_row['F1_Score']:.4f}"
         )
 
     with col4:
+
         st.metric(
             "ROC-AUC",
             f"{best_model_row['ROC_AUC']:.4f}"
@@ -634,16 +755,20 @@ with tab3:
     st.markdown("---")
 
     model_comparison_path = (
-        FIGURES_DIR / "08_model_comparison.png"
+        FIGURES_DIR
+        / "08_model_comparison.png"
     )
 
     confusion_matrix_path = (
-        FIGURES_DIR / "09_confusion_matrices.png"
+        FIGURES_DIR
+        / "09_confusion_matrices.png"
     )
 
     if model_comparison_path.exists():
 
-        st.subheader("Model Comparison")
+        st.subheader(
+            "Model Comparison"
+        )
 
         st.image(
             str(model_comparison_path),
@@ -652,7 +777,9 @@ with tab3:
 
     if confusion_matrix_path.exists():
 
-        st.subheader("Confusion Matrices")
+        st.subheader(
+            "Confusion Matrices"
+        )
 
         st.image(
             str(confusion_matrix_path),
@@ -685,7 +812,10 @@ with tab4:
 
     for title, filename in insight_figures:
 
-        figure_path = FIGURES_DIR / filename
+        figure_path = (
+            FIGURES_DIR
+            / filename
+        )
 
         if figure_path.exists():
 
